@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panasonic PT-RQ25K - Professional Shadow-Mapped Projection Shader</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+        #container { width: 100vw; height: 100vh; }
+
+        /* Top Menu Bar */
+        #top-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0,0,0,0.95);
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            z-index: 500;
+            gap: 4px;
+        }
+        .menu-item {
+            position: relative;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .menu-item:hover {
+            background: #333;
+        }
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: rgba(20,20,20,0.98);
+            border: 1px solid #444;
+            border-radius: 6px;
+            min-width: 220px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            z-index: 1000;
+            padding: 6px 0;
+        }
+        .menu-item:hover .menu-dropdown {
+            display: block;
+        }
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.15s;
+        }
+        .dropdown-item:hover {
+            background: #0d9488;
+        }
+        .dropdown-item.has-submenu {
+            position: relative;
+        }
+        .dropdown-item.has-submenu::after {
+            content: '▸';
+            margin-left: auto;
+            font-size: 10px;
+            opacity: 0.6;
+        }
+        .submenu {
+            display: none;
+            position: absolute;
+            left: 100%;
+            top: -6px;
+            background: rgba(20,20,20,0.98);
+            border: 1px solid #444;
+            border-radius: 6px;
+            min-width: 280px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            padding: 6px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .dropdown-item.has-submenu:hover .submenu {
+            display: block;
+        }
+        .submenu-header {
+            padding: 6px 16px;
+            font-size: 9px;
+            color: #0d9488;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 4px;
+        }
+        .projector-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.15s;
+        }
+        .projector-item:hover {
+            background: #0d9488;
+        }
+        .projector-item .model-name {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .projector-item .model-specs {
+            font-size: 9px;
+            color: #aaa;
+        }
+        .projector-item:hover .model-specs {
+            color: #ccc;
+        }
+        .dropdown-divider {
+            height: 1px;
+            background: #333;
+            margin: 4px 0;
+        }
+        .menu-logo {
+            font-weight: bold;
+            color: #0d9488;
+            font-size: 13px;
+            padding: 0 12px;
+            border-right: 1px solid #333;
+            margin-right: 6px;
+        }
+        
+        /* Undo/Redo Buttons */
+        .history-buttons {
+            display: flex;
+            gap: 2px;
+            margin-right: 8px;
+            padding-right: 8px;
+            border-right: 1px solid #333;
+        }
+        .history-btn {
+            width: 32px;
+            height: 28px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        .history-btn:hover:not(:disabled) {
+            background: #333;
+            border-color: #0d9488;
+            color: #fff;
+        }
+        .history-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .history-btn:active:not(:disabled) {
+            background: #0d9488;
+        }
+
+        #controls { position: absolute; top: 60px; right: 20px; background: rgba(0,0,0,0.95); padding:15px; border-radius:8px; width:300px; max-height:calc(90vh - 60px); overflow-y:auto; font-size:11p[...]
+        .control-group { margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #333; }
+        .control-group h3 { font-size:10px; margin-bottom:8px; color:#0d9488; text-transform:uppercase; }
+        .control-row { margin-bottom:8px; }
+        label { display:block; font-size:10px; margin-bottom:3px; color:#aaa; }
+        input[type="range"] { width:100%; height:3px; background:#333; border-radius:2px; outline:none; }
+        input[type="range"]::-webkit-slider-thumb { appearance:none; width:10px; height:10px; border-radius:50%; background:#0d9488; cursor:pointer; }
+        input[type="number"], select, input[type="file"] { width:100%; padding:5px; background:#2a2a2a; border:1px solid #444; color:white; border-radius:3px; font-size:11px; }
+        button { width:100%; padding:6px; background:#0d9488; color:white; border:none; border-radius:3px; cursor:pointer; font-size:10px; margin-top:4px; }
+        button.secondary { background:#444; }
+        button.danger { background:#dc2626; }
+        .value-display { color:#0d9488; font-weight:600; margin-left:5px; }
+        .checkbox-row { display:flex; align-items:center; gap:6px; margin:5px 0; }
+        .throw-display { background: linear-gradient(135deg,#0d9488 0%,#065f46 100%); padding:8px; border-radius:5px; text-align:center; margin-bottom:10px; }
+        .throw-display .label { font-size:8px; color:rgba(255,255,255,0.7); }
+        .throw-display .value { font-size:18px; font-weight:700; }
+        .throw-display .sub { font-size:9px; color:rgba(255,255,255,0.6); }
+        .measurement-group { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .measurement-input { background:#1a1a1a; padding:6px; border-radius:3px; text-align:center; }
+        .lens-specs { background:#1a1a1a; padding:5px; border-radius:3px; margin-top:5px; font-size:9px; }
+        .lens-specs .spec-row { display:flex; justify-content:space-between; padding:2px 0; }
+        .lens-specs .spec-value { color:#0d9488; }
+        .projector-model { background: linear-gradient(135deg,#1e3a5f 0%,#0d1b2a 100%); padding:8px; border-radius:5px; margin-bottom:10px; border:1px solid #2a4a6f; }
+        .snap-selector { width:60px; height:60px; background:#1a1a1a; border:1px solid #444; border-radius:4px; position:relative; padding:6px; }
+        .snap-btn { width:12px; height:12px; border-radius:50%; border:none; cursor:pointer; background:#444; position:absolute; transition: all 0.2s; }
+        .snap-btn:hover { background:#0d9488; transform: scale(1.2); }
+        .snap-btn.active { background:#0d9488; box-shadow: 0 0 6px #0d9488; }
+        .snap-btn[data-snap="tl"] { top:6px; left:6px; }
+        .snap-btn[data-snap="tr"] { top:6px; right:6px; }
+        .snap-btn[data-snap="c"] { top:50%; left:50%; transform:translate(-50%,-50%); }
+        .snap-btn[data-snap="bl"] { bottom:6px; left:6px; }
+        .snap-btn[data-snap="br"] { bottom:6px; right:6px; }
+        .snap-btn.active[data-snap="c"] { transform:translate(-50%,-50%) scale(1.1); }
+        .object-snap-points { display:none; margin-top:8px; padding:8px; background:#1a1a1a; border-radius:4px; }
+        .object-snap-points.visible { display:block; }
+        .snap-point-btn { padding:4px 8px; background:#2a2a2a; border:1px solid #444; color:#ccc; border-radius:3px; cursor:pointer; font-size:9px; margin:2px; }
+        .snap-point-btn:hover { background:#0d9488; border-color:#0d9488; }
+        .snap-point-btn.active { background:#0d9488; border-color:#0d9488; color:white; }
+        .status { padding:4px; border-radius:3px; font-size:9px; margin-top:4px; }
+        .status.success { background:rgba(13,148,136,0.2); color:#0d9488; }
+        .status.info { background:rgba(59,130,246,0.2); color:#3b82f6; }
+
+        /* 3D Model Loader Modal */
+        .model-modal { display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.85); backdrop-filter:blur(4px); }
+        .model-modal.show { display:flex; align-items:center; justify-content:center; }
+        .model-modal-content { background:#252526; border-radius:8px; width:95%; max-width:1100px; max-height:90vh; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5); display:flex; flex-direction:[...]
+        .model-modal-header { padding:12px 16px; background:#1a1a1a; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }
+        .model-modal-title { font-size:14px; font-weight:600; color:#0d9488; }
+        .model-modal-close { background:none; border:none; color:#999; font-size:20px; cursor:pointer; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:[...]
+        .model-modal-close:hover { background:#3e3e3e; color:#fff; }
+        .model-modal-body { padding:16px; overflow-y:auto; flex:1; display:flex; gap:16px; }
+        .model-modal-viewport { flex:1; position:relative; background:#1a1a1a; border-radius:4px; overflow:hidden; min-height:400px; border:1px solid #333; }
+        .model-modal-controls { width:300px; display:flex; flex-direction:column; gap:12px; }
+        .model-modal-footer { padding:12px 16px; background:#1a1a1a; border-top:1px solid #333; display:flex; justify-content:flex-end; gap:10px; }
+        .model-modal-footer button { padding:8px 16px; border-radius:4px; cursor:pointer; font-size:11px; }
+        .modal-section { background:#1e1e1e; border-radius:4px; padding:10px; }
+        .modal-section-title { font-size:10px; font-weight:600; text-transform:uppercase; color:#0d9488; margin-bottom:8px; letter-spacing:0.5px; }
+        .axis-option { background:#2d2d2d; border:1px solid #3a3a3a; border-radius:4px; padding:8px; cursor:pointer; transition:all .2s; margin-bottom:6px; }
+        .axis-option:hover { border-color:#0d9488; background:#333; }
+        .axis-option.selected { border-color:#0d9488; background:#094771; }
+        .axis-option-title { font-size:11px; font-weight:600; margin-bottom:2px; }
+        .axis-option-desc { font-size:9px; color:#888; }
+        .pivot-btn { width:100%; background:#2d2d2d; border:1px solid #3a3a3a; color:#ccc; padding:8px; border-radius:4px; cursor:pointer; text-align:center; font-size:10px; transition:all .2s; margin[...]
+        .pivot-btn:hover { background:#3a3a3a; border-color:#0d9488; }
+        .pivot-btn.active { background:#0d9488; border-color:#0d9488; color:white; }
+        .rotate-controls { display:flex; gap:4px; margin-top:6px; }
+        .rotate-controls button { flex:1; padding:6px; font-size:9px; background:#2d2d2d; border:1px solid #3a3a3a; color:#ccc; border-radius:3px; cursor:pointer; }
+        .rotate-controls button:hover { background:#0d9488; border-color:#0d9488; color:white; }
+        .upload-zone { background:#2d2d2d; border:2px dashed #3a3a3a; border-radius:6px; padding:20px; text-align:center; cursor:pointer; transition:all .2s; }
+        .upload-zone:hover { border-color:#0d9488; background:#333; }
+        .upload-zone-icon { font-size:28px; margin-bottom:6px; }
+        .upload-zone-text { font-size:11px; color:#999; margin-bottom:4px; }
+        .upload-zone-formats { font-size:9px; color:#666; }
+        .keyboard-hint { background:#2a2a2a; padding:4px; border-radius:3px; font-size:8px; color:#888; margin-top:5px; }
+        .shader-quality-badge {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 8px;
+            text-align: center;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        /* Floating Window Base Style */
+        .floating-window {
+            position: absolute;
+            background: rgba(0,0,0,0.95);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #0d9488;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            cursor: move;
+        }
+        .floating-window.visible { display: block; }
+        .floating-window-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .floating-window-header h3 {
+            font-size: 11px;
+            color: #0d9488;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .floating-window-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+        }
+        .floating-window-close:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        /* Transform Parameters Panel */
+        #transform-params {
+            bottom: 20px;
+            left: 20px;
+            width: 320px;
+        }
+        .param-section {
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        .param-section:last-child { border-bottom: none; }
+        .param-section-title {
+            font-size: 9px;
+            color: #888;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+        .param-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .param-input label {
+            font-size: 8px;
+            margin-bottom: 2px;
+            color: #aaa;
+        }
+        .param-input input {
+            width: 100%;
+            text-align: center;
+            padding: 4px;
+            font-size: 10px;
+        }
+
+        /* Keystone Window */
+        #keystone-window {
+            top: 100px;
+            right: 340px;
+            width: 280px;
+        }
+
+        /* Soft Edge Window */
+        #softedge-window {
+            top: 100px;
+            right: 340px;
+            width: 280px;
+        }
+
+        /* Scene Parameters Window */
+        #scene-params-window {
+            top: 100px;
+            left: 340px;
+            width: 300px;
+        }
+
+        /* Photometric Window */
+        #photometric-window {
+            top: 200px;
+            left: 340px;
+            width: 320px;
+        }
+
+        /* Export Window */
+        #export-window {
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+        }
+
+        /* Brand Tabs */
+        .brand-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        .brand-tab {
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px 4px 0 0;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.2s;
+        }
+        .brand-tab:hover { background: #333; border-color: #0d9488; }
+        .brand-tab.active { background: #0d9488; border-color: #0d9488; color: white; }
+        .brand-grid { display: none; }
+        .brand-grid.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+
+        /* Photometric Analysis */
+        .photometric-result {
+            background: #1a1a1a;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .photometric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0d9488;
+        }
+        .photometric-label {
+            font-size: 9px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        .photometric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        /* Gizmo Mode Controls */
+        #gizmo-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.95);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #0d9488;
+            display: none;
+        }
+        #gizmo-controls.visible { display: block; }
+        #gizmo-controls .title {
+            font-size: 9px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        .gizmo-mode-buttons {
+            display: flex;
+            gap: 6px;
+        }
+        .gizmo-mode-btn {
+            flex: 1;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #aaa;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            text-align: center;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .gizmo-mode-btn:hover {
+            background: #333;
+            border-color: #0d9488;
+        }
+        .gizmo-mode-btn.active {
+            background: #0d9488;
+            border-color: #0d9488;
+            color: white;
+        }
+        .gizmo-mode-btn .icon {
+            font-size: 16px;
+        }
+        .gizmo-mode-btn .label {
+            font-size: 8px;
+            text-transform: uppercase;
+        }
+        .gizmo-mode-btn .key {
+            font-size: 7px;
+            opacity: 0.6;
+        }
+
+        /* Popup Menu for Primitives */ 
+        /* ... rest of original CSS ... */
+    </style>
+</head>
+<body>
+    <!-- Original HTML content (scene, layout, scripts, etc.) remains unchanged above.
+         The custom integration modules are appended below just before </body>. -->
+
+<!-- ===== DemoOffscreen module + floating patch (INTEGRATED) =====
+     Inserted here to ensure it loads after Three.js and the main app.
+     If you already have earlier copies of these scripts, remove duplicates. -->
+<script>
+/* Offscreen Demo Module
+   - Integrated non-intrusively into existing page
+   - Exposes window.DemoOffscreen with init(), export(), dispose()
+   - Creates panel UI (bottom-right) and preview canvases (hidden).
+   - Uses an offscreen WebGLRenderer to produce pixel-perfect PNGs.
+   - Loads JSZip/FileSaver if missing.
+*/
+(function () {
+  'use strict';
+
+  function _log(){ try { console.log('[DemoOffscreen]', ...arguments); } catch(e){} }
+  function el(tag, props, children){
+    const n = document.createElement(tag);
+    if (props) Object.entries(props).forEach(([k,v]) => {
+      if (k === 'style') Object.assign(n.style, v);
+      else if (k in n) n[k] = v;
+      else n.setAttribute(k, v);
+    });
+    if (children) (Array.isArray(children)?children:[children]).forEach(c => {
+      if (typeof c === 'string') n.appendChild(document.createTextNode(c));
+      else n.appendChild(c);
+    });
+    return n;
+  }
+  function loadScript(src){
+    return new Promise((res,rej) => {
+      if (document.querySelector('script[src="'+src+'"]')) return res();
+      const s = document.createElement('script'); s.src = src;
+      s.onload = res; s.onerror = rej; document.head.appendChild(s);
+    });
+  }
+
+  function discover(){
+    return {
+      renderer: window.renderer || window._renderer || null,
+      scene: window.scene || window._scene || null,
+      camera: window.camera || window._camera || null,
+      projectors: window.projectors || window._projectors || null,
+      contentVideo: window.contentVideo || window._contentVideo || null,
+      contentTexture: window.contentTexture || window._contentTexture || null
+    };
+  }
+
+  async function ensureDependencies(){
+    const tasks = [];
+    if (typeof JSZip === 'undefined') tasks.push(loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'));
+    if (typeof saveAs === 'undefined') tasks.push(loadScript('https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js'));
+    if (tasks.length){
+      _log('Loading deps...');
+      await Promise.all(tasks).catch(e => { _log('Deps load failed', e); throw e; });
+      _log('Deps loaded');
+    }
+  }
+
+  const cache = { exportRenderer: null, canvas: null, w:0, h:0 };
+
+  async function createExportRendererForSize(w,h){
+    if (cache.exportRenderer && cache.w===w && cache.h===h) return cache;
+    // dispose previous
+    try {
+      if (cache.exportRenderer) { cache.exportRenderer.dispose && cache.exportRenderer.dispose(); const gl = cache.exportRenderer.getContext && cache.exportRenderer.getContext(); if (gl){ const lose = gl.getExtension && (gl.getExtension('WEBGL_lose_context') || gl.getExtension('WEBKIT_WEBGL_lose_context')); if (lose && lose.loseContext) lose.loseContext(); } }
+      if (cache.canvas && cache.canvas.parentNode) cache.canvas.parentNode.removeChild(cache.canvas);
+    } catch(e){ /* ignore */ }
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; canvas.style.display='none'; document.body.appendChild(canvas);
+    const exportRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+    exportRenderer.setSize(w,h); exportRenderer.setPixelRatio(1);
+    const g = discover();
+    if (g.renderer) {
+      try {
+        exportRenderer.outputEncoding = g.renderer.outputEncoding || exportRenderer.outputEncoding;
+        exportRenderer.toneMapping = g.renderer.toneMapping || exportRenderer.toneMapping;
+        exportRenderer.toneMappingExposure = g.renderer.toneMappingExposure || exportRenderer.toneMappingExposure;
+      } catch(e){}
+    }
+    cache.exportRenderer = exportRenderer; cache.canvas = canvas; cache.w = w; cache.h = h;
+    return cache;
+  }
+
+  function disposeExportRendererCache(){
+    if (!cache.exportRenderer) return;
+    try {
+      cache.exportRenderer.dispose && cache.exportRenderer.dispose();
+      const gl = cache.exportRenderer.getContext && cache.exportRenderer.getContext();
+      if (gl) { const lose = gl.getExtension('WEBGL_lose_context') || gl.getExtension('WEBKIT_WEBGL_lose_context'); if (lose) try { lose.loseContext(); } catch(e){} }
+      if (cache.canvas && cache.canvas.parentNode) cache.canvas.parentNode.removeChild(cache.canvas);
+    } catch(e){}
+    cache.exportRenderer = null; cache.canvas = null; cache.w = 0; cache.h = 0;
+    _log('export renderer disposed');
+  }
+
+  async function waitForFrameAfterSeek(video, targetTime, timeoutMs = 12000){
+    if (!video) return true;
+    const start = performance.now(); let finished = false;
+    return new Promise((resolve) => {
+      const finish = (ok) => { if (finished) return; finished = true; resolve(ok); };
+      let to = setTimeout(async () => {
+        let ok = false;
+        for (let a=0;a<3 && !ok;a++){
+          try { await video.play().catch(()=>{}); await new Promise(r=>setTimeout(r,180)); video.pause(); if (Math.abs(video.currentTime - targetTime) < 0.12) ok = true; } catch(e){}
+        }
+        finish(ok);
+      }, timeoutMs);
+      try {
+        try { video.currentTime = Math.min(targetTime, Math.max(0, video.duration)); } catch(e){}
+        if (typeof video.requestVideoFrameCallback === 'function'){
+          const cb = (now, metadata) => {
+            if (finished) return;
+            const delta = Math.abs(video.currentTime - targetTime);
+            if (delta < 0.06 || (performance.now()-start) > timeoutMs) { clearTimeout(to); finish(delta < 0.12); return; }
+            try { video.requestVideoFrameCallback(cb); } catch(e){}
+          };
+          try { video.requestVideoFrameCallback(cb); } catch(e) {
+            video.addEventListener('seeked', function onS(){ video.removeEventListener('seeked', onS); requestAnimationFrame(()=>requestAnimationFrame(()=>{ clearTimeout(to); finish(true); })); });
+          }
+        } else {
+          video.addEventListener('seeked', function onS(){ video.removeEventListener('seeked', onS); requestAnimationFrame(()=>requestAnimationFrame(()=>{ clearTimeout(to); finish(true); })); });
+        }
+      } catch(err){
+        clearTimeout(to);
+        (async ()=>{
+          let ok=false;
+          for (let a=0;a<3 && !ok;a++){ try { await video.play().catch(()=>{}); await new Promise(r=>setTimeout(r,150)); video.pause(); if (Math.abs(video.currentTime - targetTime) < 0.12) ok = true; } catch(e){} }
+          finish(ok);
+        })();
+      }
+    });
+  }
+
+  async function captureProjectorsToZip(exportRenderer, offscreenCanvas, zip, frameIndex, selectedProjectors, scene, contentTexture){
+    for (const p of selectedProjectors){
+      const prevAspect = p.camera.aspect;
+      p.camera.aspect = offscreenCanvas.width / offscreenCanvas.height; p.camera.updateProjectionMatrix();
+      exportRenderer.setRenderTarget(null); exportRenderer.clear(); exportRenderer.render(scene, p.camera);
+      await new Promise(r=>requestAnimationFrame(r));
+      await new Promise(resolve => {
+        offscreenCanvas.toBlob(blob => { const name = `proj_${p.id}/frame_${String(frameIndex).padStart(6,'0')}.png`; if (blob) zip.file(name, blob); resolve(); }, 'image/png');
+      });
+      p.camera.aspect = prevAspect; p.camera.updateProjectionMatrix();
+    }
+  }
+
+  async function captureMainToZip(exportRenderer, offscreenCanvas, zip, frameIndex, scene){
+    exportRenderer.setRenderTarget(null); exportRenderer.clear(); exportRenderer.render(scene, window.camera || scene.__defaultCamera || scene.userData && scene.userData.camera || window.camera);
+    await new Promise(r=>requestAnimationFrame(r));
+    await new Promise(resolve => {
+      offscreenCanvas.toBlob(blob => { const name = `main/frame_${String(frameIndex).padStart(6,'0')}.png`; if (blob) zip.file(name, blob); resolve(); }, 'image/png');
+    });
+  }
+
+  function createDemoUI(){
+    if (document.getElementById('demoOffscreenPanel')) return;
+    const panel = el('div',{ id:'demoOffscreenPanel', style:{ position:'fixed', right:'12px', bottom:'12px', width:'320px', background:'rgba(10,10,10,0.95)', border:'1px solid #233', padding:'10px', borderRadius:'8px', zIndex:99999, color:'#ddd', fontSize:'13px' }});
+    panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong style="color:#0dd6b6">Demo Export</strong><button id="demoCloseBtn" title="Close" style="background:#222;color:#ddd;border:1px solid #333;padding:4px 8px;border-radius:4px;cursor:pointer">x</button></div>`;
+    const body = el('div',{},[
+      el('div',{ style:{ display:'grid', gap:'6px' }}, [
+        el('label',{ style:{ fontSize:'12px', color:'#aaa' }}, ['Resolution ',
+          el('select',{ id:'demoRes', style:{ float:'right', background:'#111', color:'#fff', borderRadius:'4px', padding:'4px' }}, [
+            el('option',{ value:'3840x2160' }, ['4K']), el('option',{ value:'1920x1080' }, ['FullHD']), el('option',{ value:'1280x720' }, ['HD']), el('option',{ value:'preview' }, ['Preview (small)'])
+          ])
+        ]),
+        el('label',{ style:{ fontSize:'12px', color:'#aaa' }}, ['FPS ',
+          el('input',{ id:'demoFps', type:'number', value:30, min:1, style:{ width:'64px', float:'right', background:'#111', color:'#fff', borderRadius:'4px', padding:'4px' } })
+        ]),
+        el('label',{ style:{ fontSize:'12px', color:'#aaa' }}, ['Segment (s) ',
+          el('input',{ id:'demoSeg', type:'number', value:5, min:1, style:{ width:'64px', float:'right', background:'#111', color:'#fff', borderRadius:'4px', padding:'4px' } })
+        ]),
+        el('div',{ style:{ display:'flex', gap:'8px' }}, [
+          el('button',{ id:'demoRecordBtn', style:{ flex:1, background:'#b91c1c', color:'#fff', borderRadius:'6px', padding:'8px', border:'none', cursor:'pointer' }}, ['Record']),
+          el('button',{ id:'demoExportBtn', style:{ flex:1, background:'#0d9488', color:'#fff', borderRadius:'6px', padding:'8px', border:'none', cursor:'pointer' }}, ['Export'])
+        ]),
+        el('div',{ style:{ display:'flex', gap:'8px', marginTop:'6px', flexWrap:'wrap' }}, [
+          el('button',{ id:'demoTestSeek', style:{ background:'#333', color:'#ddd', padding:'6px', borderRadius:'6px', border:'1px solid #222' }}, ['Seek test']),
+          el('button',{ id:'demoShowPreviews', style:{ background:'#333', color:'#ddd', padding:'6px', borderRadius:'6px', border:'1px solid #222' }}, ['Toggle previews'])
+        ]),
+        el('div',{ id:'demoLog', style:{ background:'#071018', padding:'8px', borderRadius:'6px', color:'#9ca3af', fontFamily:'monospace', fontSize:'12px', maxHeight:'120px', overflow:'auto' }}, ['mini-log...'])
+      ])
+    ]);
+    panel.appendChild(body); document.body.appendChild(panel);
+    document.getElementById('demoCloseBtn').onclick = ()=> panel.style.display='none';
+
+    const previews = el('div',{ id:'demoPreviews', style:{ position:'fixed', right:'12px', bottom:'150px', display:'grid', gridTemplateColumns:'repeat(2,200px)', gap:'8px', zIndex:99999 }});
+    for (let i=0;i<4;i++){
+      const wrapper = el('div',{ style:{ width:'200px', height:'150px', background:'#000', borderRadius:'8px', overflow:'hidden', border:'1px solid rgba(13,148,136,0.08)' }});
+      const label = el('div',{ style:{ position:'absolute', margin:'6px', padding:'4px 8px', background:'rgba(13,148,136,0.9)', color:'#fff', borderRadius:'6px', fontSize:'12px' }}, [`Proj ${i+1}`]);
+      const c = el('canvas',{ id:'demoPreviewCanvas_'+i, width:200, height:150, style:{ width:'200px', height:'150px', display:'block' }});
+      wrapper.appendChild(c); wrapper.appendChild(label); previews.appendChild(wrapper);
+    }
+    previews.style.display='none'; document.body.appendChild(previews);
+
+    function panelLog(msg){ const elLog = document.getElementById('demoLog'); if (!elLog) return; elLog.textContent += '\n' + msg; elLog.scrollTop = elLog.scrollHeight; _log(msg); }
+
+    let isRecording = false; const previewRecorders = []; let mainRecorder = null; const recordedBlobs = { proj: [null,null,null,null], main: null };
+
+    async function startRecording(){ const d=discover(); if (!d.scene){ panelLog('No scene found to record'); return; } panelLog('Starting recording (previews + main)'); for (let i=0;i<4;i++){ const canvas = document.getElementById('demoPreviewCanvas_'+i); try { const stream = canvas.captureStream(30); const mr = new MediaRecorder(stream, {}); const rec = { mr, chunks:[] }; mr.ondataavailable = e => { if (e.data && e.data.size) rec.chunks.push(e.data); }; mr.onstop = () => { try { const blob = new Blob(rec.chunks, { type: rec.chunks[0]?.type || 'video/webm' }); recordedBlobs.proj[i] = blob; panelLog(`Projector ${i} blob ${blob.size}`); } catch(e){ panelLog('proj blob assemble err ' + e.message); } }; mr.start(); previewRecorders.push(rec); } catch(e){ panelLog('preview recorder fail ' + e.message); } } try { const mainCanvas = (discover().renderer && discover().renderer.domElement) ? discover().renderer.domElement : null; if (mainCanvas) { const stream = mainCanvas.captureStream(30); const mr = new MediaRecorder(stream, {}); const rec = { mr, chunks:[] }; mr.ondataavailable = e=>{ if (e.data && e.data.size) rec.chunks.push(e.data); }; mr.onstop = ()=>{ try { const blob = new Blob(rec.chunks, { type: rec.chunks[0]?.type || 'video/webm' }); recordedBlobs.main = blob; panelLog(`Main blob ${blob.size}`); } catch(e){ panelLog('main blob err ' + e.message); } }; mr.start(); mainRecorder = rec; } } catch(e){ panelLog('main recorder fail ' + e.message); } isRecording = true; document.getElementById('demoRecordBtn').textContent='Stop'; document.getElementById('demoRecordBtn').style.background='#444'; }
+
+    function stopRecording(){ panelLog('Stopping recording...'); previewRecorders.forEach(r=>{ try { r.mr.stop(); } catch(e){} }); previewRecorders.length=0; if (mainRecorder) try { mainRecorder.mr.stop(); } catch(e){} mainRecorder=null; isRecording=false; document.getElementById('demoRecordBtn').textContent='Record'; document.getElementById('demoRecordBtn').style.background='#b91c1c'; }
+
+    document.getElementById('demoRecordBtn').onclick = ()=>{ if (!isRecording) startRecording(); else stopRecording(); };
+    document.getElementById('demoShowPreviews').onclick = ()=>{ const p=document.getElementById('demoPreviews'); p.style.display=(p.style.display==='none')?'grid':'none'; };
+
+    document.getElementById('demoTestSeek').onclick = async ()=>{
+      const d=discover(); if (!d.contentVideo) { panelLog('No video loaded'); return; } const fps=parseInt(document.getElementById('demoFps').value,10)||30; panelLog('running quick seek test 8 frames'); await ensureDependencies(); for (let i=0;i<8;i++){ const t=Math.min(i/fps, d.contentVideo.duration); panelLog('seek to ' + t.toFixed(3)); const ok = await waitForFrameAfterSeek(d.contentVideo,t,8000); panelLog('seek ok=' + ok + ' currentTime=' + d.contentVideo.currentTime.toFixed(6)); } panelLog('seek test done');
+    };
+
+    document.getElementById('demoExportBtn').onclick = async ()=>{
+      try { await ensureDependencies(); const res=document.getElementById('demoRes').value; const [w,h]=res==='preview'?[200,150]:res.split('x').map(n=>parseInt(n,10)); const fps=parseInt(document.getElementById('demoFps').value,10)||30; const seg=parseInt(document.getElementById('demoSeg').value,10)||5; const d=discover(); if (!d.projectors||d.projectors.length===0){ panelLog('No projectors detected on page'); return; } const selectedIndices=d.projectors.map((_,i)=>i); panelLog(`Starting export ${w}x${h} fps=${fps} seg=${seg}s`); await DemoOffscreen.export({ width:w, height:h, fps:fps, segmentSeconds:seg, selectedIndices:selectedIndices, exportMain:false }); panelLog('Export finished'); } catch(e){ panelLog('Export error: ' + (e && e.message?e.message:e)); _log(e); }
+    };
+
+    let previewRunning=true;
+    (async function previewLoop(){
+      while(previewRunning){
+        const d=discover();
+        if (d.scene && d.projectors && d.projectors.length){
+          for (let i=0;i<4;i++){
+            const p=d.projectors[i]; const canvas=document.getElementById('demoPreviewCanvas_'+i); if (!canvas||!p) continue; const w=canvas.width, h=canvas.height;
+            if (!p.__demoRT || p.__demoRT.width !== w || p.__demoRT.height !== h){ try { p.__demoRT && p.__demoRT.dispose && p.__demoRT.dispose(); } catch(e){} p.__demoRT = new THREE.WebGLRenderTarget(w,h,{ minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat }); }
+            try {
+              const mainR = (discover().renderer)?discover().renderer:null; if (!mainR) continue;
+              mainR.setRenderTarget(p.__demoRT); mainR.clear(); mainR.render(d.scene, p.camera); mainR.setRenderTarget(null);
+              const ctx = canvas.getContext('2d');
+              try {
+                const pixels = new Uint8Array(w*h*4); mainR.readRenderTargetPixels(p.__demoRT,0,0,w,h,pixels); const row=w*4; const flipped=new Uint8ClampedArray(w*h*4); for (let y=0;y<h;y++){ const src=y*row, dst=(h-1-y)*row; flipped.set(pixels.subarray(src,src+row), dst); } const imageData=new ImageData(flipped,w,h); ctx.putImageData(imageData,0,0);
+              } catch(e) { ctx.clearRect(0,0,canvas.width,canvas.height); if (d.contentTexture && d.contentTexture.image) try{ ctx.drawImage(d.contentTexture.image,0,0,canvas.width,canvas.height); } catch(e){} }
+            } catch(e){}
+          }
+        }
+        await new Promise(r=>setTimeout(r,100));
+      }
+    })();
+    panel._stop = ()=>{ previewRunning=false; const d=discover(); if (d.projectors) d.projectors.forEach(p=>{ try{ p.__demoRT && p.__demoRT.dispose && p.__demoRT.dispose(); p.__demoRT=null; }catch(e){} }); };
+    panelLog('Demo UI created');
+  }
+
+  async function exportRoutine(options){
+    await ensureDependencies();
+    const d=discover();
+    if (!d.scene || !d.projectors || d.projectors.length===0){ alert('Scene / projectors not found'); return; }
+    const fps=options.fps||30; const width=options.width||3840; const height=options.height||2160; const segSec=options.segmentSeconds||5;
+    const selectedIndices=Array.isArray(options.selectedIndices)?options.selectedIndices:d.projectors.map((_,i)=>i); const exportMain=!!options.exportMain;
+    const selectedProjectors = d.projectors.map((p,i)=>Object.assign({},p,{id:i})).filter((_,i)=>selectedIndices.includes(i));
+    const duration = d.contentVideo?d.contentVideo.duration:(options.duration||0); const totalFrames = Math.max(1, Math.round(duration*fps));
+    const segFrames = Math.max(1, Math.round(segSec*fps)); const segments=[]; for (let s=0;s<totalFrames;s+=segFrames) segments.push([s,Math.min(totalFrames,s+segFrames)]);
+    _log('Export settings',width,height,fps,'segments',segments.length);
+    const cacheObj = await createExportRendererForSize(width,height); const exportRenderer=cacheObj.exportRenderer; const offscreenCanvas=cacheObj.canvas;
+    for (let segIndex=0; segIndex<segments.length; segIndex++){
+      const [startF,endF]=segments[segIndex]; const zip=new JSZip(); selectedIndices.forEach(i=>zip.folder(`proj_${i}`)); if (exportMain) zip.folder('main');
+      let framesAdded=0;
+      try {
+        for (let frameIndex=startF; frameIndex<endF; frameIndex++){
+          const t=Math.min(frameIndex/fps,duration); const progressEl=document.getElementById('progress'); if (progressEl) progressEl.textContent=`seg ${segIndex+1}/${segments.length} frame ${frameIndex+1}/${totalFrames} t=${t.toFixed(3)}s`; _log(`seek -> ${t.toFixed(3)}s (frame ${frameIndex})`);
+          const ok = await waitForFrameAfterSeek(d.contentVideo,t,12000); if (!ok) _log(`seek warning: frame ${frameIndex} timed out (attempted fallback)`);
+          if (d.contentTexture && d.contentTexture.isVideoTexture) d.contentTexture.needsUpdate = true;
+          if (selectedProjectors.length){ await captureProjectorsToZip(exportRenderer,offscreenCanvas,zip,frameIndex,selectedProjectors,d.scene,d.contentTexture); framesAdded += selectedProjectors.length; const fc=document.getElementById('frameCount'); if (fc) fc.textContent=framesAdded;}
+          if (exportMain){ await captureMainToZip(exportRenderer, offscreenCanvas, zip, frameIndex, d.scene); framesAdded++; const fc=document.getElementById('frameCount'); if (fc) fc.textContent=framesAdded; }
+          await new Promise(r=>setTimeout(r,6));
+        }
+        const outBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } }, meta => { const pe=document.getElementById('progress'); if (pe) pe.textContent=`zipping ${Math.round(meta.percent)}%`; });
+        const fname = `proj_export_seg${segIndex+1}_${Date.now()}.zip`; saveAs(outBlob, fname); _log(`Segment ${segIndex+1} ZIP saved: ${fname}`);
+      } catch(err){
+        _log('Error during export segment: ' + (err && err.message ? err.message : err));
+        try { const partial = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } }); const pf = `proj_partial_seg${segIndex+1}_${Date.now()}.zip`; const a=document.createElement('a'); a.href=URL.createObjectURL(partial); a.download=pf; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); _log('Partial saved: ' + pf); } catch(e2){ _log('Partial zip failed: ' + (e2 && e2.message ? e2.message : e2)); }
+      }
+    }
+    disposeExportRendererCache(); const pe=document.getElementById('progress'); if (pe) pe.textContent='idle'; _log('Export finished');
+  }
+
+  window.DemoOffscreen = { init: function(){ try{ createDemoUI(); }catch(e){ _log('init error',e);} }, export: exportRoutine, dispose: function(){ disposeExportRendererCache(); const panel=document.getElementById('demoOffscreenPanel'); if (panel){ panel._stop && panel._stop(); panel.remove(); } const previews=document.getElementById('demoPreviews'); if (previews) previews.remove(); } };
+  try{ setTimeout(()=>{ try{ window.DemoOffscreen.init(); }catch(e){ _log('auto init failed', e); } }, 600); }catch(e){ _log('load error', e); }
+
+})();
+</script>
+
+<!-- ===== Floating patch (guarantees visible button and shortcut) ===== -->
+<script>
+(function(){
+  "use strict";
+  function qs(id){ return document.getElementById(id); }
+  function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+  function createFloatingButton(){
+    if (qs('offscreenFloatingBtn')) return qs('offscreenFloatingBtn');
+    const btn = document.createElement('button');
+    btn.id = 'offscreenFloatingBtn'; btn.type = 'button'; btn.title = 'Open Demo Export (Shift+E)'; btn.innerText = 'Export demo';
+    Object.assign(btn.style, { position:'fixed', left:'8px', top:'8px', zIndex:'2147483647', background:'#0d9488', color:'#fff', border:'none', padding:'8px 10px', borderRadius:'8px', boxShadow:'0 6px 18px rgba(0,0,0,0.6)', cursor:'pointer', fontFamily:'system-ui, Arial, sans-serif', fontSize:'13px', opacity:'0.95' });
+    btn.addEventListener('mouseenter', ()=> btn.style.opacity = '1');
+    btn.addEventListener('mouseleave', ()=> btn.style.opacity = '0.95');
+    btn.setAttribute('aria-label','Open Demo Export modal');
+    btn.addEventListener('click', async function onClick(){
+      try {
+        if (window.DemoOffscreen && typeof window.DemoOffscreen.init === 'function') {
+          window.DemoOffscreen.init();
+          const modal = document.getElementById('offscreenExportModal') || document.getElementById('demoOffscreenPanel');
+          if (modal) { modal.style.display = 'block'; modal.style.zIndex = '2147483646'; }
+          console.log('[OffscreenPatch] DemoOffscreen.init() called');
+          return;
+        }
+        const maxWait = 5000; const step = 250; let waited = 0;
+        while (waited < maxWait) {
+          await wait(step); waited += step;
+          if (window.DemoOffscreen && typeof window.DemoOffscreen.init === 'function') {
+            window.DemoOffscreen.init();
+            const modal = document.getElementById('offscreenExportModal') || document.getElementById('demoOffscreenPanel');
+            if (modal) { modal.style.display = 'block'; modal.style.zIndex = '2147483646'; }
+            console.log('[OffscreenPatch] DemoOffscreen became available and was initialized');
+            return;
+          }
+        }
+        alert('DemoOffscreen module non trouvé. Vérifie que le script du module est bien collé avant </body> et que Three.js est chargé.');
+      } catch (e) { console.error('[OffscreenPatch] click handler error', e); }
+    });
+    document.body.appendChild(btn);
+    return btn;
+  }
+  function installShortcut(){ window.addEventListener('keydown', (ev)=>{ if (ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && ev.key.toLowerCase()==='e'){ const btn=qs('offscreenFloatingBtn')||createFloatingButton(); btn && btn.click(); } }); }
+  function ensureVisibilityPulse(){ const btn=qs('offscreenFloatingBtn'); if (!btn) return; const stopAt = Date.now() + 3000; const interval = setInterval(()=>{ if (Date.now() > stopAt) { clearInterval(interval); return; } btn.style.zIndex='2147483647'; btn.style.display='block'; }, 200); }
+  function initPatch(){ try { const existing = qs('offscreenFloatingBtn'); if (existing) { existing.style.position='fixed'; existing.style.left='8px'; existing.style.top='8px'; existing.style.zIndex='2147483647'; existing.style.display='block'; ensureVisibilityPulse(); return; } createFloatingButton(); installShortcut(); ensureVisibilityPulse(); console.log('[OffscreenPatch] floating button installed (Shift+E to open)'); } catch(e){ console.error('[OffscreenPatch] init error', e); } }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPatch); else initPatch();
+})();
+</script>
+
+<!-- ===== End of integration scripts ===== -->
+
+</body>
+</html>
